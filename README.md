@@ -1,2 +1,3 @@
 # SirGridsAlot
-Lighting fast tilable regular grids in python
+
+Rapidly create diamond or hex grids with Python.
