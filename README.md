@@ -68,7 +68,7 @@ plot_grid.plot_grid_3d(dia_grid)
 
 # Performance comparison
 
-SirGridsAlot is x time faster than other libraries here is a comparison 
+SirGridsAlot is much faster than other libraries here is a comparison 
 with the beautiful [hexalattice](https://github.com/alexkaz2/hexalattice) library.
 
 
