@@ -62,7 +62,7 @@ plot_grid.plot_grid_3d(dia_grid)
 
 <summary>Diamond grid result</summary>
 
-![Diamond grid example](dia_grid.png)
+![Diamond grid example](images/dia_grid.png)
 
 </details>
 
