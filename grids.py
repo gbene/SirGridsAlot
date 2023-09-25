@@ -13,9 +13,9 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
         3. Get the n of sides e.g. For theta = 90 n sides will be 4
         4. Create a zeros matrix of n_sides x 4 x 4
         5. Fill for each angle a translation matrix with the translation vector = [r*np.cos(angle), r*np.sin(angle), 0, 1]
-        6. Create a grid of center points in range of bounds. The n of points in each direction is function of theta
+        6. Create a grid of center centers in range of bounds. The n of centers in each direction is function of theta
         7. Offset the x coords every row by a factor function of theta
-        8. The dot product between the center and the matrix results in n points = n sides translated by the angle
+        8. The dot product between the center and the matrix results in n centers = n sides translated by the angle
 
     :param n_sides: Number of sides of the grid cell
     :param r: Radius of circle enclosing the cell
@@ -26,9 +26,9 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
     theta = 360/n_sides
     theta_rad = np.deg2rad(theta)
     angles = np.deg2rad(np.arange((90-theta), 360, theta))
-    n_sides = len(angles)
+    n_angles = len(angles)
 
-    trans_matrix = np.zeros((n_sides, 4, 4))
+    trans_matrix = np.zeros((n_angles, 4, 4))
 
     for i, angle in enumerate(angles):
         trans_matrix[i] = np.array([
@@ -39,7 +39,9 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
         ])
 
     nx = np.sin(theta_rad)*2*r
-    ny = r + np.cos(theta_rad)*r
+    ny = r + np.absolute(np.cos(theta_rad))*r
+
+    print(nx, ny)
 
     xmin, ymin, xmax, ymax = bounds
     x = np.arange(xmin, xmax, nx)
@@ -48,18 +50,36 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
     xv, yv = np.meshgrid(x, y)
     zv = np.zeros_like(xv)
     ones = np.ones_like(xv)
-    xv[::2, :] += np.sin(theta_rad)*r
+    xv[::2, :] -= np.sin(theta_rad)*r
 
-    points = np.hstack((xv.reshape(-1, 1), yv.reshape(-1, 1), zv.reshape(-1, 1), ones.reshape(-1, 1)))
+    centers = np.hstack((xv.reshape(-1, 1), yv.reshape(-1, 1), zv.reshape(-1, 1), ones.reshape(-1, 1)))
+
     if return_centers:
-        return points
+        return centers
     else:
-        hex_grid = points.dot(trans_matrix)[:, :, :-1]
-        n_points = np.shape(hex_grid)[0]*np.shape(hex_grid)[1]
-        conn = np.insert(np.arange(0, n_points), np.arange(0, n_points, n_sides), n_sides)
+        hex_grid = centers.dot(trans_matrix)[:, :, :-1]
 
-        vtk_obj = pv.PolyData(hex_grid.reshape(-1, 3), faces=conn)
-        return vtk_obj
+        n_points = np.shape(hex_grid)[0]*np.shape(hex_grid)[1]
+        hex_grid = hex_grid.reshape(-1, 3)
+        # if n_sides == 3:
+        triangles1 = np.arange(1, n_points, 2)
+        print((np.arange(0, n_points, 6)-1)[1:])
+
+        # triangles2a = np.insert(triangles1, 0, 0)[::3][1:]
+        # triangles2b = triangles1[::3]
+        # print(triangles1)
+        # print(triangles2a)
+        # print(triangles2b)
+
+        test_conn = np.insert(triangles1, np.arange(0, len(triangles1), 3), 3),
+        print(test_conn)
+        conn = np.insert(np.arange(0, n_points), np.arange(0, n_points, n_angles), n_angles)
+        vtk_obj = pv.PolyData(hex_grid, faces=conn)
+        test = pv.PolyData(hex_grid)
+        test['idx'] = np.arange(0, n_points)
+        # vtk_obj.cell_data['cellid'] = np.arange(vtk_obj.n_cells)
+
+        return vtk_obj, test
 
 
 

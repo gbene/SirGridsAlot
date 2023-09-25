@@ -1,36 +1,37 @@
 import grids
 import numpy as np
 
+from helpers import plot_grid
+import pyvista as pv
+
 from hexalattice.hexalattice import *
 import time
 
 
-nx = 1000
-ny = 1000
-
-
-start_lat = time.time()
-hex_centers, _ = create_hex_grid(nx=nx,
-                                 ny=ny,
-                                 do_plot=True)
-end_lat = time.time()
-
-print(end_lat-start_lat)
+nx = 4
+ny = 4
 # plt.show()  # import matplotlib.pyplot as plt
 
 
 area_bounds = np.array([0, 0, nx, ny])
 
 
-start_sir = time.time()
-grid = grids.gen_grid(area_bounds, r=1, n_sides=6)
-end_sir = time.time()
+# start_sir = time.time()
+grid, test = grids.gen_grid(area_bounds, r=1, n_sides=6)
 
-print(end_sir-start_sir)
+plotter = pv.Plotter()
 
-print((end_lat-start_lat)/(end_sir-start_sir))
+# plotter.add_mesh(grid)
+plotter.add_mesh(test)
+plotter.add_point_labels(test, test['idx'])
 
+plotter.set_background('gray')
+plotter.view_xy()
+plotter.add_camera_orientation_widget()
+plotter.show()
 
-# print(grid.cell_centers().points)
+# end_sir = time.time()
+# plot_grid.plot_grid_3d(grid)
+
 
 
