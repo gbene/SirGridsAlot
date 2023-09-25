@@ -1,5 +1,6 @@
 import pyvista as pv
 import numpy as np
+from vtkmodules.vtkFiltersCore import vtkAppendPolyData, vtkCleanPolyData
 
 
 def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_centers: bool= False):
@@ -22,6 +23,14 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
     :param bounds: Boundary limits (xmin, ymin, xmax, ymax)
     :return:
     """
+    if n_sides == 3:
+        r *= np.sqrt(3)
+        tri = 1
+        n_sides = 6
+        bounds[:2] = bounds[:2][::-1]
+        bounds[2:] = bounds[2:][::-1]
+    else:
+        tri = 0
 
     theta = 360/n_sides
     theta_rad = np.deg2rad(theta)
@@ -41,13 +50,16 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
     nx = np.sin(theta_rad)*2*r
     ny = r + np.absolute(np.cos(theta_rad))*r
 
-    print(nx, ny)
-
     xmin, ymin, xmax, ymax = bounds
     x = np.arange(xmin, xmax, nx)
     y = np.arange(ymin, ymax, ny)
 
     xv, yv = np.meshgrid(x, y)
+
+    n_col, n_rows = np.shape(xv)
+
+    print(n_col, n_rows)
+
     zv = np.zeros_like(xv)
     ones = np.ones_like(xv)
     xv[::2, :] -= np.sin(theta_rad)*r
@@ -61,25 +73,61 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
 
         n_points = np.shape(hex_grid)[0]*np.shape(hex_grid)[1]
         hex_grid = hex_grid.reshape(-1, 3)
-        # if n_sides == 3:
-        triangles1 = np.arange(1, n_points, 2)
-        print((np.arange(0, n_points, 6)-1)[1:])
 
-        # triangles2a = np.insert(triangles1, 0, 0)[::3][1:]
-        # triangles2b = triangles1[::3]
-        # print(triangles1)
-        # print(triangles2a)
-        # print(triangles2b)
+        if tri:
+            center_grid = np.append(hex_grid, centers[:, :-1], axis=0)
+            print(np.shape(center_grid))
 
-        test_conn = np.insert(triangles1, np.arange(0, len(triangles1), 3), 3),
-        print(test_conn)
-        conn = np.insert(np.arange(0, n_points), np.arange(0, n_points, n_angles), n_angles)
-        vtk_obj = pv.PolyData(hex_grid, faces=conn)
-        test = pv.PolyData(hex_grid)
-        test['idx'] = np.arange(0, n_points)
-        # vtk_obj.cell_data['cellid'] = np.arange(vtk_obj.n_cells)
+            centers_idx = np.repeat(np.arange(n_points, n_points+len(centers)), 6).reshape(-1, 1)
+            zeros_centers = np.zeros((len(centers_idx), 2), dtype=int)
 
-        return vtk_obj, test
+            part1 = np.append(centers_idx, zeros_centers, axis=1).flatten()
+
+            vert_idx = np.arange(0, n_points).reshape(-1, 6)
+
+            vert_idx = np.roll(np.repeat(vert_idx, 2, axis=1), -1, axis=1).reshape(-1, 2)
+            zeros_vert = np.zeros((n_points, 1), dtype=int)
+
+            part2 = np.append(zeros_vert, vert_idx, axis=1).flatten()
+
+            tri_conn = np.insert(part1 + part2, np.arange(0, len(part1), 3), 3).reshape(n_col, n_rows, 24)
+
+            tri_conn[:, 0][::2][:, :12] = -1
+            tri_conn[:, -1][1::2][:, :4] = -1
+            tri_conn[:, -1][1::2][:, 16:] = -1
+            tri_conn = tri_conn.reshape(-1, 4)
+
+            rem_index = np.where(np.all(tri_conn == -1, axis=1) == 1)
+            center_grid = np.delete(center_grid, rem_index[0], axis=0)
+            print(center_grid)
+            tri_conn = np.delete(tri_conn, rem_index[0], axis=0)
+            # tri_conn[:, 0][::2] = down
+
+            vtk_obj = pv.PolyData(center_grid, faces=tri_conn)
+            vtk_obj.rotate_z(angle=90, point=vtk_obj.center, inplace=True)
+        else:
+            conn = np.insert(np.arange(0, n_points), np.arange(0, n_points, n_angles), n_angles)
+            vtk_obj = pv.PolyData(hex_grid, faces=conn)
+
+
+
+        # #
+        # #
+        # # # if n_sides == 3:
+        # # #     appender = vtkAppendPolyData()
+        # # #     vtk_copy = vtk_obj.rotate_z(point=vtk_obj.center, angle=180)
+        # # #     # appender.AddInputData(vtk_obj)
+        # # #     # appender.AddInputData(vtk_copy)
+        # #
+        # #
+        # #
+        # #
+        # #
+        # #
+        # #
+        vtk_obj.cell_data['cellid'] = np.arange(vtk_obj.n_cells)
+
+        return vtk_obj
 
 
 
