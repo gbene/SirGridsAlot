@@ -9,7 +9,7 @@ import time
 
 
 nx = 12
-ny = 8
+ny = 4
 # plt.show()  # import matplotlib.pyplot as plt
 
 

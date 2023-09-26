@@ -56,9 +56,9 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
 
     xv, yv = np.meshgrid(x, y)
 
-    n_col, n_rows = np.shape(xv)
+    n_col, n_rows = np.shape(yv)
 
-    print(n_col, n_rows)
+    print(n_col*n_rows)
 
     zv = np.zeros_like(xv)
     ones = np.ones_like(xv)
@@ -75,36 +75,73 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
         hex_grid = hex_grid.reshape(-1, 3)
 
         if tri:
-            center_grid = np.append(hex_grid, centers[:, :-1], axis=0)
-            print(np.shape(center_grid))
 
-            centers_idx = np.repeat(np.arange(n_points, n_points+len(centers)), 6).reshape(-1, 1)
-            zeros_centers = np.zeros((len(centers_idx), 2), dtype=int)
+            new_hexgrid = hex_grid.reshape(n_col, n_rows, 18)
+            #
+            # plotter = pv.Plotter()
+            #
+            # plotter.add_mesh(pv.PolyData(new_hexgrid.reshape(-1, 3)), color='black')
+            #
+            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, 0][::2][:, 6:12].reshape(-1, 3)), color='red')
+            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, -1][1::2][:, :3].reshape(-1, 3)), color='red')
+            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, -1][1::2][:, 15:].reshape(-1, 3)), color='red')
+            #
+            # plotter.set_background('gray')
+            # plotter.view_xy()
+            # plotter.add_camera_orientation_widget()
+            # plotter.show()
 
-            part1 = np.append(centers_idx, zeros_centers, axis=1).flatten()
+            new_hexgrid[:, 0][::2][:, 6:12] = -1
+            # print(new_hexgrid)
+            new_hexgrid[:, -1][1::2][:, :3] = -1
+            new_hexgrid[:, -1][1::2][:, 15:] = -1
+            new_hexgrid = new_hexgrid.reshape(-1, 3)
+            # print(new_hexgrid)
+
+            rem_index = np.where(np.all(new_hexgrid == -1, axis=1) == 1)
+            # new_hexgrid = np.delete(hex_grid, rem_index[0], axis=0)
+            #
+            # new_points = len(new_hexgrid)
 
             vert_idx = np.arange(0, n_points).reshape(-1, 6)
 
             vert_idx = np.roll(np.repeat(vert_idx, 2, axis=1), -1, axis=1).reshape(-1, 2)
+
             zeros_vert = np.zeros((n_points, 1), dtype=int)
 
-            part2 = np.append(zeros_vert, vert_idx, axis=1).flatten()
+            part1 = np.append(zeros_vert, vert_idx, axis=1).flatten()
 
-            tri_conn = np.insert(part1 + part2, np.arange(0, len(part1), 3), 3).reshape(n_col, n_rows, 24)
+            len_index = max(np.delete(vert_idx, rem_index[0], axis=0).flatten())
 
-            tri_conn[:, 0][::2][:, :12] = -1
-            tri_conn[:, -1][1::2][:, :4] = -1
-            tri_conn[:, -1][1::2][:, 16:] = -1
-            tri_conn = tri_conn.reshape(-1, 4)
+            # print(len_index)
 
-            rem_index = np.where(np.all(tri_conn == -1, axis=1) == 1)
-            center_grid = np.delete(center_grid, rem_index[0], axis=0)
-            print(center_grid)
-            tri_conn = np.delete(tri_conn, rem_index[0], axis=0)
+            # part1 = np.delete(part1, rem_index[0], axis=0)
+
+            center_grid = np.append(new_hexgrid, centers[:, :-1], axis=0)
+
+            centers_idx = np.repeat(np.arange(n_points, n_points + len(centers)), 6).reshape(-1, 1)
+
+            zeros_centers = np.zeros((len(centers_idx), 2), dtype=int)
+
+            part2 = np.append(centers_idx, zeros_centers, axis=1).flatten()
+
+            tri_conn = (part1+part2).reshape(-1, 3)
+
+            # for index in rem_index[0]:
+            #     tri_conn[index:, 1:] -= 1
+
+            # tri_conn = np.delete(tri_conn, rem_index[0], axis=0).flatten()
+            # tri_conn[np.where(tri_conn < 0)] = 0
+            # center_grid = np.delete(center_grid, rem_index[0], axis=0).reshape(-1, 3)
+
+            tri_conn = np.insert(tri_conn, np.arange(0, len(tri_conn.flatten()), 3), 3)
             # tri_conn[:, 0][::2] = down
 
             vtk_obj = pv.PolyData(center_grid, faces=tri_conn)
+            vtk_obj.remove_points(rem_index[0], inplace=True)
             vtk_obj.rotate_z(angle=90, point=vtk_obj.center, inplace=True)
+            vtk_obj.flip_x(inplace=True)
+
         else:
             conn = np.insert(np.arange(0, n_points), np.arange(0, n_points, n_angles), n_angles)
             vtk_obj = pv.PolyData(hex_grid, faces=conn)
