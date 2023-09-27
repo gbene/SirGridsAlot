@@ -13,8 +13,7 @@
 </div>
 
 
-Rapidly create and plot in 2D/3D diamond or hex grids with Python.
-
+Rapidly create and plot in 2D/3D regular Euclidean tilings with Python.
 
 
 # Installation
@@ -29,7 +28,7 @@ $ pip install -r requirements.txt
 
 # Quick example
 
-Create a 100x100 hexagonal and diamond grids enclosed in a circle of radius 1:
+Create a 100x100 hexagonal, diamond and triangular grids enclosed in a circle of radius 1:
 
 ```python
 import grids
@@ -41,6 +40,9 @@ area_bounds = np.array([0, 0, 100, 100])
 hex_grid = grids.gen_grid(area_bounds, r=1, n_sides=6)
 
 dia_grid = grids.gen_grid(area_bounds, r=1, n_sides = 4)
+
+tri_grid = grids.gen_grid(area_bounds, r=1, n_sides = 3)
+
 ```
 
 Plot such grids:
@@ -50,6 +52,7 @@ from helpers import plot_grid
 
 plot_grid.plot_grid_3d(hex_grid)
 plot_grid.plot_grid_3d(dia_grid)
+plot_grid.plot_grid_3d(tri_grid)
 ```
 <details>
 <summary> Hexagonal grid result </summary>
@@ -63,6 +66,14 @@ plot_grid.plot_grid_3d(dia_grid)
 <summary>Diamond grid result</summary>
 
 ![Diamond grid example](images/dia_grid.png)
+
+</details>
+
+<details>
+
+<summary>Triangular grid result</summary>
+
+![Triangular grid example](images/tri_grid.png)
 
 </details>
 
@@ -114,5 +125,5 @@ This is possible thanks to an original approach for creating grids.
 + [ ] Create grids inside any generic closed loop
 + [ ] Plot grids in matplotlib
 + [ ] Export grids as shapefiles
-+ [ ] Support triangles
++ [x] Support triangles
 + [ ] Support grid operations (i.e. cut objects that intersect grids, calculate densities and so on)

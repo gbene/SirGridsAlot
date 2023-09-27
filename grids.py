@@ -3,7 +3,7 @@ import numpy as np
 from vtkmodules.vtkFiltersCore import vtkAppendPolyData, vtkCleanPolyData
 
 
-def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_centers: bool= False):
+def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_centers: bool= False, vertex: str = 'up'):
 
     """
     Efficiently create a diamond(90) or hex(60) grid in a rectangle boundary.
@@ -21,6 +21,11 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
     :param n_sides: Number of sides of the grid cell
     :param r: Radius of circle enclosing the cell
     :param bounds: Boundary limits (xmin, ymin, xmax, ymax)
+    :param return_centers: Return the centers of the cells
+    :param vertex: Decide the orientation of the squares and hexagons. For vertex='up' (default), square grids will be
+    diamond grids and hexagons will be "pointing" up. For vertex='down', square grids will be rectilinear and hexagons
+    will lie flat.
+
     :return:
     """
     if n_sides == 3:
@@ -29,14 +34,31 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
         n_sides = 6
         bounds[:2] = bounds[:2][::-1]
         bounds[2:] = bounds[2:][::-1]
+        vertex = 'up'
     else:
         tri = 0
 
     theta = 360/n_sides
     theta_rad = np.deg2rad(theta)
-    angles = np.deg2rad(np.arange((90-theta), 360, theta))
-    n_angles = len(angles)
 
+    fac = 1
+    if vertex == 'up':
+        angles = np.deg2rad(np.arange((90-theta), 360, theta))
+
+        nx = np.sin(theta_rad)*2*r
+        ny = r + np.absolute(np.cos(theta_rad))*r
+
+    elif vertex == 'down':
+        if n_sides == 4:
+            angles = np.deg2rad(np.arange(45, 360, theta))
+            nx = ny = 2*r/np.sqrt(2)
+            fac = 0
+        elif n_sides == 6:
+            angles = np.deg2rad(np.arange(0, 360, theta))
+            nx = r + np.absolute(np.cos(theta_rad))*r
+            ny = np.sin(theta_rad)*2*r
+
+    n_angles = len(angles)
     trans_matrix = np.zeros((n_angles, 4, 4))
 
     for i, angle in enumerate(angles):
@@ -47,9 +69,6 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
             [r*np.cos(angle), r*np.sin(angle), 0, 1]
         ])
 
-    nx = np.sin(theta_rad)*2*r
-    ny = r + np.absolute(np.cos(theta_rad))*r
-
     xmin, ymin, xmax, ymax = bounds
     x = np.arange(xmin, xmax, nx)
     y = np.arange(ymin, ymax, ny)
@@ -58,11 +77,14 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
 
     n_col, n_rows = np.shape(yv)
 
-    print(n_col*n_rows)
-
     zv = np.zeros_like(xv)
     ones = np.ones_like(xv)
-    xv[::2, :] -= np.sin(theta_rad)*r
+
+    if vertex == 'up':
+        xv[::2, :] -= np.sin(theta_rad)*r
+    elif vertex == 'down':
+        yv[:, ::2] -= fac*np.sin(theta_rad)*r
+
 
     centers = np.hstack((xv.reshape(-1, 1), yv.reshape(-1, 1), zv.reshape(-1, 1), ones.reshape(-1, 1)))
 
@@ -77,31 +99,12 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
         if tri:
 
             new_hexgrid = hex_grid.reshape(n_col, n_rows, 18)
-            #
-            # plotter = pv.Plotter()
-            #
-            # plotter.add_mesh(pv.PolyData(new_hexgrid.reshape(-1, 3)), color='black')
-            #
-            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, 0][::2][:, 6:12].reshape(-1, 3)), color='red')
-            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, -1][1::2][:, :3].reshape(-1, 3)), color='red')
-            # plotter.add_mesh(pv.PolyData(new_hexgrid[:, -1][1::2][:, 15:].reshape(-1, 3)), color='red')
-            #
-            # plotter.set_background('gray')
-            # plotter.view_xy()
-            # plotter.add_camera_orientation_widget()
-            # plotter.show()
 
             new_hexgrid[:, 0][::2][:, 6:12] = -1
-            # print(new_hexgrid)
             new_hexgrid[:, -1][1::2][:, :3] = -1
             new_hexgrid[:, -1][1::2][:, 15:] = -1
             new_hexgrid = new_hexgrid.reshape(-1, 3)
-            # print(new_hexgrid)
-
             rem_index = np.where(np.all(new_hexgrid == -1, axis=1) == 1)
-            # new_hexgrid = np.delete(hex_grid, rem_index[0], axis=0)
-            #
-            # new_points = len(new_hexgrid)
 
             vert_idx = np.arange(0, n_points).reshape(-1, 6)
 
@@ -113,10 +116,6 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
 
             len_index = max(np.delete(vert_idx, rem_index[0], axis=0).flatten())
 
-            # print(len_index)
-
-            # part1 = np.delete(part1, rem_index[0], axis=0)
-
             center_grid = np.append(new_hexgrid, centers[:, :-1], axis=0)
 
             centers_idx = np.repeat(np.arange(n_points, n_points + len(centers)), 6).reshape(-1, 1)
@@ -127,15 +126,7 @@ def gen_grid(bounds: np.ndarray, r: float = 0.3, n_sides: int = 4, return_center
 
             tri_conn = (part1+part2).reshape(-1, 3)
 
-            # for index in rem_index[0]:
-            #     tri_conn[index:, 1:] -= 1
-
-            # tri_conn = np.delete(tri_conn, rem_index[0], axis=0).flatten()
-            # tri_conn[np.where(tri_conn < 0)] = 0
-            # center_grid = np.delete(center_grid, rem_index[0], axis=0).reshape(-1, 3)
-
             tri_conn = np.insert(tri_conn, np.arange(0, len(tri_conn.flatten()), 3), 3)
-            # tri_conn[:, 0][::2] = down
 
             vtk_obj = pv.PolyData(center_grid, faces=tri_conn)
             vtk_obj.remove_points(rem_index[0], inplace=True)

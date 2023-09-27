@@ -8,8 +8,8 @@ from hexalattice.hexalattice import *
 import time
 
 
-nx = 12
-ny = 4
+nx = 20
+ny = 20
 # plt.show()  # import matplotlib.pyplot as plt
 
 
@@ -17,21 +17,9 @@ area_bounds = np.array([0, 0, nx, ny])
 
 
 # start_sir = time.time()
-grid = grids.gen_grid(area_bounds, r=1, n_sides=3)
+grid = grids.gen_grid(area_bounds, r=1, n_sides=4, vertex='down')
 
-plotter = pv.Plotter()
-
-# plotter.add_mesh(grid, color='blue')
-plotter.add_mesh(grid)
-
-
-plotter.set_background('gray')
-plotter.view_xy()
-plotter.add_camera_orientation_widget()
-plotter.show()
-
-# end_sir = time.time()
-# plot_grid.plot_grid_3d(grid)
+plot_grid.plot_grid_3d(grid, cell_data='cellid')
 
 
 
